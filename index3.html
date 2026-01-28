@@ -1,0 +1,1855 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COPROCH - La copropriété, enfin simple</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🏢%3C/text%3E%3C/svg%3E">
+    
+    <!-- Firebase SDK (prêt pour connexion cloud) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #1e3a8a;
+            --primary-light: #3b82f6;
+            --success: #059669;
+            --warning: #f97316;
+            --danger: #dc2626;
+            --gray-50: #f8fafc;
+            --gray-100: #f1f5f9;
+            --gray-200: #e2e8f0;
+            --gray-600: #475569;
+            --gray-800: #1e293b;
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--gray-50);
+            color: var(--gray-800);
+            line-height: 1.6;
+        }
+        
+        /* LOGO COPROCH STYLES */
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            cursor: pointer;
+        }
+        
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+        }
+        
+        .logo-text {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .logo-brand {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            letter-spacing: -0.02em;
+            line-height: 1;
+        }
+        
+        .logo-brand span {
+            color: var(--success);
+        }
+        
+        .logo-tagline {
+            font-size: 0.65rem;
+            color: var(--gray-600);
+            font-weight: 500;
+            margin-top: 0.1rem;
+            line-height: 1.2;
+        }
+        
+        /* NAVIGATION */
+        .navbar {
+            background: white;
+            border-bottom: 1px solid var(--gray-200);
+            padding: 0.75rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow);
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+        
+        .nav-links a {
+            text-decoration: none;
+            color: var(--gray-600);
+            font-weight: 500;
+            font-size: 0.875rem;
+            transition: color 0.2s;
+            padding: 0.5rem 0;
+            border-bottom: 2px solid transparent;
+        }
+        
+        .nav-links a:hover, .nav-links a.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+        
+        .btn {
+            padding: 0.625rem 1.25rem;
+            border-radius: 0.5rem;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #1e40af;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: var(--gray-600);
+            border: 1px solid var(--gray-200);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--gray-50);
+            border-color: var(--gray-600);
+        }
+        
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #047857;
+        }
+        
+        .btn-sm {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.75rem;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .page { display: none; }
+        .page.active { display: block; animation: fadeIn 0.3s ease; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* HEADER */
+        .header {
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        
+        .header h1 {
+            font-size: 1.875rem;
+            font-weight: 700;
+            color: var(--gray-800);
+            margin-bottom: 0.25rem;
+        }
+        
+        .header p {
+            color: var(--gray-600);
+            font-size: 1rem;
+        }
+        
+        /* STATS */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--gray-100);
+            transition: transform 0.2s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .stat-card h3 {
+            font-size: 0.875rem;
+            color: var(--gray-600);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        
+        .stat-card .value {
+            font-size: 2.25rem;
+            font-weight: 700;
+            color: var(--primary);
+            line-height: 1;
+        }
+        
+        .stat-card .change {
+            font-size: 0.875rem;
+            color: var(--success);
+            margin-top: 0.5rem;
+            font-weight: 500;
+        }
+        
+        /* CARDS */
+        .card {
+            background: white;
+            border-radius: 0.75rem;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--gray-100);
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+        
+        .card-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--gray-100);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--gray-50);
+        }
+        
+        .card-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--gray-800);
+        }
+        
+        .card-body {
+            padding: 1.5rem;
+        }
+        
+        /* LISTES */
+        .list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 0;
+            border-bottom: 1px solid var(--gray-100);
+            transition: background 0.2s;
+        }
+        
+        .list-item:hover {
+            background: var(--gray-50);
+            margin: 0 -1.5rem;
+            padding-left: 1.5rem;
+            padding-right: 1.5rem;
+        }
+        
+        .list-item:last-child {
+            border-bottom: none;
+        }
+        
+        .item-info h4 {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            color: var(--gray-800);
+        }
+        
+        .item-info p {
+            font-size: 0.875rem;
+            color: var(--gray-600);
+        }
+        
+        /* BADGES */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.375rem 0.875rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .badge-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .badge-blue {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .badge-gray {
+            background: var(--gray-100);
+            color: var(--gray-600);
+        }
+        
+        /* FORMULAIRES */
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+        
+        .form-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--gray-700);
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 0.625rem 0.875rem;
+            border: 1px solid var(--gray-200);
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+            background: white;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+        }
+        
+        textarea.form-control {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        /* UPLOAD ZONE */
+        .upload-zone {
+            border: 2px dashed var(--gray-300);
+            border-radius: 0.75rem;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--gray-50);
+        }
+        
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: var(--primary);
+            background: #eff6ff;
+        }
+        
+        .upload-zone input[type="file"] {
+            display: none;
+        }
+        
+        .upload-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        /* GRID */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+        
+        @media (max-width: 768px) {
+            .grid-2 { grid-template-columns: 1fr; }
+            .nav-links { display: none; }
+            .container { padding: 1rem; }
+            .header { flex-direction: column; gap: 1rem; }
+        }
+        
+        /* VOTES */
+        .vote-card {
+            border: 1px solid var(--gray-200);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            transition: all 0.2s;
+            background: white;
+        }
+        
+        .vote-card:hover {
+            border-color: var(--primary-light);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .vote-results {
+            background: var(--gray-50);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 0.5rem;
+            background: var(--gray-200);
+            border-radius: 9999px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            transition: width 0.5s ease;
+        }
+        
+        /* DOCUMENTS */
+        .document-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            border: 1px solid var(--gray-200);
+            border-radius: 0.5rem;
+            margin-bottom: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: white;
+        }
+        
+        .document-item:hover {
+            background: var(--gray-50);
+            border-color: var(--primary);
+            transform: translateX(4px);
+        }
+        
+        .doc-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: white;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.75rem;
+        }
+        
+        .doc-icon.pdf { background: linear-gradient(135deg, #dc2626, #ef4444); }
+        .doc-icon.doc { background: linear-gradient(135deg, #2563eb, #3b82f6); }
+        .doc-icon.img { background: linear-gradient(135deg, #059669, #10b981); }
+        
+        /* TABS */
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            border-bottom: 1px solid var(--gray-200);
+            margin-bottom: 1.5rem;
+            overflow-x: auto;
+        }
+        
+        .tab {
+            padding: 0.75rem 1.25rem;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--gray-600);
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        
+        .tab:hover {
+            color: var(--primary);
+        }
+        
+        .tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+        
+        /* LOGIN */
+        .login-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--primary) 0%, #3730a3 100%);
+            position: relative;
+        }
+        
+        .login-box {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 1rem;
+            box-shadow: var(--shadow-lg);
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+        }
+        
+        .login-box .logo-container {
+            justify-content: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .login-box .logo-brand {
+            font-size: 2rem;
+        }
+        
+        .login-box h2 {
+            color: var(--gray-800);
+            margin-bottom: 0.5rem;
+            font-size: 1.5rem;
+        }
+        
+        .login-subtitle {
+            color: var(--gray-600);
+            margin-bottom: 2rem;
+            font-size: 0.875rem;
+        }
+        
+        .language-switch {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .lang-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .lang-btn:hover, .lang-btn.active {
+            background: white;
+            color: var(--primary);
+        }
+        
+        /* MODAL */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+        
+        .modal.active {
+            display: flex;
+            animation: fadeIn 0.2s;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            max-width: 560px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--gray-800);
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--gray-600);
+            padding: 0.25rem;
+        }
+        
+        /* TOAST */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--gray-800);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: var(--shadow-lg);
+            display: none;
+            animation: slideIn 0.3s;
+            z-index: 1001;
+            font-weight: 500;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .toast.show { display: block; }
+        
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+        
+        /* QUICK ACTIONS */
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .action-card {
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .action-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .action-icon {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, var(--gray-100), white);
+            border-radius: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            font-size: 1.75rem;
+            border: 2px solid var(--gray-200);
+        }
+        
+        .action-card:hover .action-icon {
+            border-color: var(--primary);
+            background: linear-gradient(135deg, #eff6ff, white);
+        }
+        
+        .action-card h4 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            color: var(--gray-800);
+        }
+        
+        .action-card p {
+            font-size: 0.875rem;
+            color: var(--gray-600);
+        }
+        
+        /* EMPTY STATE */
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--gray-600);
+        }
+        
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+        
+        /* FILE LIST */
+        .file-list {
+            margin-top: 1rem;
+        }
+        
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem;
+            background: var(--gray-50);
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .file-item button {
+            background: none;
+            border: none;
+            color: var(--danger);
+            cursor: pointer;
+            font-size: 1.25rem;
+        }
+        
+        /* MOBILE MENU */
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        
+        @media (max-width: 768px) {
+            .mobile-menu-btn { display: block; }
+            .nav-links { 
+                display: none; 
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background: white;
+                flex-direction: column;
+                padding: 1rem;
+                border-bottom: 1px solid var(--gray-200);
+                box-shadow: var(--shadow-lg);
+            }
+            .nav-links.active { display: flex; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- LOGIN PAGE -->
+<div id="loginPage" class="login-container">
+    <div class="language-switch">
+        <button class="lang-btn active" onclick="setLang('fr')" data-lang="fr">FR</button>
+        <button class="lang-btn" onclick="setLang('de')" data-lang="de">DE</button>
+    </div>
+    
+    <div class="login-box">
+        <!-- LOGO COPROCH -->
+        <div class="logo-container" onclick="location.reload()">
+            <svg class="logo-icon" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Bâtiment bleu -->
+                <rect x="10" y="30" width="25" height="60" fill="#1e3a8a" rx="2"/>
+                <rect x="15" y="40" width="5" height="8" fill="white"/>
+                <rect x="25" y="40" width="5" height="8" fill="white"/>
+                <rect x="15" y="55" width="5" height="8" fill="white"/>
+                <rect x="25" y="55" width="5" height="8" fill="white"/>
+                <rect x="15" y="70" width="5" height="8" fill="white"/>
+                <rect x="25" y="70" width="5" height="8" fill="white"/>
+                
+                <!-- Maison verte (centre) -->
+                <path d="M50 15 L75 35 L75 85 L35 85 L35 35 Z" fill="#059669"/>
+                <rect x="45" y="55" width="20" height="25" fill="white"/>
+                <rect x="48" y="60" width="6" height="6" fill="#059669"/>
+                <rect x="56" y="60" width="6" height="6" fill="#059669"/>
+                <rect x="48" y="70" width="6" height="6" fill="#059669"/>
+                <rect x="56" y="70" width="6" height="6" fill="#059669"/>
+                <path d="M42 40 L50 32 L58 40" stroke="white" stroke-width="3" fill="none"/>
+                
+                <!-- Bâtiment gris -->
+                <rect x="75" y="20" width="20" height="70" fill="#475569" rx="2"/>
+                <rect x="78" y="28" width="14" height="4" fill="white"/>
+                <rect x="78" y="38" width="14" height="4" fill="white"/>
+                <rect x="78" y="48" width="14" height="4" fill="white"/>
+                <rect x="78" y="58" width="14" height="4" fill="white"/>
+                <rect x="78" y="68" width="14" height="4" fill="white"/>
+                <rect x="78" y="78" width="14" height="4" fill="white"/>
+                
+                <!-- Sol -->
+                <path d="M5 90 Q50 95 95 90" stroke="#94a3b8" stroke-width="2" fill="none"/>
+            </svg>
+            <div class="logo-text">
+                <div class="logo-brand">COPR<span>OCH</span></div>
+                <div class="logo-tagline" data-i18n="tagline">La copropriété, enfin simple<br>Eigentum, endlich einfach</div>
+            </div>
+        </div>
+        
+        <h2 data-i18n="welcome">Bienvenue</h2>
+        <p class="login-subtitle" data-i18n="loginSubtitle">Gestion simplifiée de vos PPE</p>
+        
+        <form onsubmit="handleLogin(event)">
+            <div class="form-group">
+                <label data-i18n="email">Email</label>
+                <input type="email" class="form-control" id="loginEmail" value="demo@coproch.ch" required>
+            </div>
+            <div class="form-group">
+                <label data-i18n="password">Mot de passe</label>
+                <input type="password" class="form-control" id="loginPassword" value="demo123" required>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%;" data-i18n="login">
+                Se connecter
+            </button>
+        </form>
+        
+        <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--gray-200);">
+            <p style="font-size: 0.875rem; color: var(--gray-600); margin-bottom: 0.5rem;" data-i18n="demoAccount">
+                Compte démo disponible
+            </p>
+            <button class="btn btn-secondary" style="width: 100%;" onclick="fillDemo()" data-i18n="useDemo">
+                Utiliser le compte démo
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app" style="display: none;">
+    <nav class="navbar">
+        <div class="logo-container" onclick="showPage('dashboard')">
+            <svg class="logo-icon" viewBox="0 0 100 100" fill="none" style="width: 32px; height: 32px;">
+                <rect x="10" y="30" width="25" height="60" fill="#1e3a8a" rx="2"/>
+                <rect x="15" y="40" width="5" height="8" fill="white"/>
+                <rect x="25" y="40" width="5" height="8" fill="white"/>
+                <path d="M50 15 L75 35 L75 85 L35 85 L35 35 Z" fill="#059669"/>
+                <rect x="45" y="55" width="20" height="25" fill="white"/>
+                <rect x="75" y="20" width="20" height="70" fill="#475569" rx="2"/>
+            </svg>
+            <div class="logo-text">
+                <div class="logo-brand" style="font-size: 1.25rem;">COPR<span>OCH</span></div>
+            </div>
+        </div>
+        
+        <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+        
+        <div class="nav-links" id="navLinks">
+            <a href="#" class="active" onclick="showPage('dashboard')" data-i18n="dashboard">Tableau de bord</a>
+            <a href="#" onclick="showPage('ppe')" data-i18n="myPPE">Mes PPE</a>
+            <a href="#" onclick="showPage('documents')" data-i18n="documents">Documents</a>
+            <a href="#" onclick="showPage('votes')" data-i18n="votes">Votes</a>
+            <a href="#" onclick="showPage('messages')" data-i18n="messages">Messages</a>
+            <button class="btn btn-secondary btn-sm" onclick="logout()" data-i18n="logout">Déconnexion</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- DASHBOARD -->
+        <div id="dashboard" class="page active">
+            <div class="header">
+                <div>
+                    <h1 data-i18n="dashboardTitle">Tableau de bord</h1>
+                    <p data-i18n="dashboardSubtitle">Vue d'ensemble de vos propriétés</p>
+                </div>
+                <button class="btn btn-primary" onclick="openModal('newPPE')">
+                    <span>+</span> <span data-i18n="newPPE">Nouvelle PPE</span>
+                </button>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3 data-i18n="ppeManaged">PPE gérées</h3>
+                    <div class="value" id="statPPE">3</div>
+                    <div class="change">+1 ce mois</div>
+                </div>
+                <div class="stat-card">
+                    <h3 data-i18n="totalLots">Total lots</h3>
+                    <div class="value" id="statLots">56</div>
+                    <div class="change">18 PPE moyenne</div>
+                </div>
+                <div class="stat-card">
+                    <h3 data-i18n="documents">Documents</h3>
+                    <div class="value" id="statDocs">24</div>
+                    <div class="change">+5 cette semaine</div>
+                </div>
+                <div class="stat-card">
+                    <h3 data-i18n="activeVotes">Votes en cours</h3>
+                    <div class="value" id="statVotes">2</div>
+                    <div class="change" data-i18n="closingSoon">1 clôture demain</div>
+                </div>
+            </div>
+            
+            <div class="quick-actions">
+                <div class="action-card" onclick="openModal('newDoc')">
+                    <div class="action-icon">📄</div>
+                    <h4 data-i18n="addDoc">Ajouter document</h4>
+                    <p data-i18n="addDocDesc">PV, règlement, contrat</p>
+                </div>
+                <div class="action-card" onclick="openModal('newVote')">
+                    <div class="action-icon">🗳️</div>
+                    <h4 data-i18n="newVote">Nouveau vote</h4>
+                    <p data-i18n="newVoteDesc">Décision assemblée</p>
+                </div>
+                <div class="action-card" onclick="showPage('messages')">
+                    <div class="action-icon">💬</div>
+                    <h4 data-i18n="sendMessage">Envoyer message</h4>
+                    <p data-i18n="sendMessageDesc">Notifier copropriétaires</p>
+                </div>
+                <div class="action-card" onclick="showPage('ppe')">
+                    <div class="action-icon">🏢</div>
+                    <h4 data-i18n="viewPPE">Voir mes PPE</h4>
+                    <p data-i18n="viewPPEDesc">Gérer les copropriétés</p>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title" data-i18n="recentActivity">Activité récente</h3>
+                    <button class="btn btn-secondary btn-sm" data-i18n="seeAll">Voir tout</button>
+                </div>
+                <div class="card-body" id="activityList">
+                    <!-- Généré dynamiquement -->
+                </div>
+            </div>
+        </div>
+
+        <!-- PPE MANAGEMENT -->
+        <div id="ppe" class="page">
+            <div class="header">
+                <div>
+                    <h1 data-i18n="myPPE">Mes PPE</h1>
+                    <p data-i18n="ppeSubtitle">Gestion des copropriétés</p>
+                </div>
+                <button class="btn btn-primary" onclick="openModal('newPPE')">
+                    <span>+</span> <span data-i18n="newPPE">Nouvelle PPE</span>
+                </button>
+            </div>
+            
+            <div class="grid-2" id="ppeList">
+                <!-- Généré dynamiquement -->
+            </div>
+        </div>
+
+        <!-- DOCUMENTS -->
+        <div id="documents" class="page">
+            <div class="header">
+                <div>
+                    <h1 data-i18n="documents">Documents</h1>
+                    <p data-i18n="docsSubtitle">Centralisation et archivage</p>
+                </div>
+                <button class="btn btn-primary" onclick="openModal('newDoc')">
+                    <span>+</span> <span data-i18n="addDoc">Ajouter</span>
+                </button>
+            </div>
+            
+            <div class="tabs">
+                <div class="tab active" onclick="filterDocs('all', this)" data-i18n="all">Tous</div>
+                <div class="tab" onclick="filterDocs('pv', this)">PV Assemblées</div>
+                <div class="tab" onclick="filterDocs('reglement', this)" data-i18n="regulations">Règlements</div>
+                <div class="tab" onclick="filterDocs('contrat', this)" data-i18n="contracts">Contrats</div>
+                <div class="tab" onclick="filterDocs('facture', this)" data-i18n="invoices">Factures</div>
+            </div>
+            
+            <div id="documentsList">
+                <!-- Généré dynamiquement -->
+            </div>
+        </div>
+
+        <!-- VOTES -->
+        <div id="votes" class="page">
+            <div class="header">
+                <div>
+                    <h1 data-i18n="votes">Votes & Décisions</h1>
+                    <p data-i18n="votesSubtitle">Gestion démocratique des PPE</p>
+                </div>
+                <button class="btn btn-primary" onclick="openModal('newVote')">
+                    <span>+</span> <span data-i18n="newVote">Nouveau vote</span>
+                </button>
+            </div>
+            
+            <div id="votesList">
+                <!-- Généré dynamiquement -->
+            </div>
+        </div>
+
+        <!-- MESSAGES -->
+        <div id="messages" class="page">
+            <div class="header">
+                <div>
+                    <h1 data-i18n="messages">Messages</h1>
+                    <p data-i18n="messagesSubtitle">Communication centralisée</p>
+                </div>
+            </div>
+            
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title" data-i18n="newMessage">Nouveau message</h3>
+                    </div>
+                    <div class="card-body">
+                        <form onsubmit="sendMessage(event)">
+                            <div class="form-group">
+                                <label data-i18n="selectPPE">PPE concernée</label>
+                                <select class="form-control" id="msgPPE" required>
+                                    <!-- Généré dynamiquement -->
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label data-i18n="recipients">Destinataires</label>
+                                <select class="form-control" id="msgRecipients">
+                                    <option value="all" data-i18n="allOwners">Tous les copropriétaires</option>
+                                    <option value="council" data-i18n="councilOnly">Conseil de PPE uniquement</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label data-i18n="subject">Sujet</label>
+                                <input type="text" class="form-control" id="msgSubject" required placeholder="Ex: Convocation AG 2024">
+                            </div>
+                            <div class="form-group">
+                                <label data-i18n="message">Message</label>
+                                <textarea class="form-control" id="msgBody" rows="4" required placeholder="Votre message..."></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: normal;">
+                                    <input type="checkbox" id="msgNotify" checked>
+                                    <span data-i18n="autoNotify">Notification email automatique</span>
+                                </label>
+                            </div>
+                            <button type="submit" class="btn btn-primary" style="width: 100%;" data-i18n="send">
+                                Envoyer
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title" data-i18n="messageHistory">Historique récent</h3>
+                    </div>
+                    <div class="card-body" id="messageHistory">
+                        <!-- Généré dynamiquement -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL -->
+<div id="modal" class="modal" onclick="if(event.target === this) closeModal()">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title" id="modalTitle">Titre</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div id="modalBody"></div>
+    </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="toast"></div>
+
+<script>
+    // ==========================================
+    // DATA & STATE
+    // ==========================================
+    
+    let currentUser = null;
+    let currentLang = 'fr';
+    let currentFilter = 'all';
+    
+    // Données initiales (simulation base de données)
+    let appData = {
+        ppe: [
+            { id: 1, name: 'Résidence des Alpes', address: 'Rue du Lac 12, 1004 Lausanne', lots: 24, owners: 18, docs: 12, lastPV: '2024-01-15' },
+            { id: 2, name: 'Les Jardins', address: 'Avenue de la Gare 45, 1201 Genève', lots: 12, owners: 10, docs: 8, lastPV: '2024-02-20' },
+            { id: 3, name: 'Le Panorama', address: 'Chemin des Vignes 8, 1530 Payerne', lots: 20, owners: 16, docs: 4, lastPV: '2024-03-10' }
+        ],
+        documents: [
+            { id: 1, name: 'PV Assemblée générale 2024.pdf', ppe: 1, type: 'pv', size: '2.4 MB', date: '2024-01-15', url: '#' },
+            { id: 2, name: 'Règlement de copropriété.pdf', ppe: 2, type: 'reglement', size: '1.8 MB', date: '2024-01-10', url: '#' },
+            { id: 3, name: 'Contrat entretien ascenseur.docx', ppe: 1, type: 'contrat', size: '856 KB', date: '2024-02-05', url: '#' },
+            { id: 4, name: 'Facture chauffage Q4 2024.pdf', ppe: 3, type: 'facture', size: '1.2 MB', date: '2024-03-01', url: '#' }
+        ],
+        votes: [
+            { 
+                id: 1, 
+                ppe: 1, 
+                title: 'Travaux de façade', 
+                desc: 'Rénovation façade sud et réparation balcons. Budget 45\'000 CHF.',
+                status: 'active',
+                type: 'simple',
+                endDate: '2024-03-25',
+                results: { yes: 12, no: 3, abstain: 1, total: 18 },
+                budget: '45\'000 CHF'
+            },
+            { 
+                id: 2, 
+                ppe: 2, 
+                title: 'Changement prestataire jardinage', 
+                desc: 'Passage à VertJardin SA pour entretien espaces verts.',
+                status: 'closed',
+                type: 'simple',
+                endDate: '2024-03-20',
+                results: { yes: 9, no: 1, abstain: 0, total: 10 },
+                budget: null
+            }
+        ],
+        messages: [
+            { id: 1, ppe: 1, subject: 'Convocation AG annuelle', recipients: 18, date: '2024-03-20', status: 'sent' },
+            { id: 2, ppe: 2, subject: 'Information travaux ascenseur', recipients: 10, date: '2024-03-18', status: 'sent' }
+        ],
+        activities: [
+            { type: 'doc', title: 'PV Assemblée générale 2024', ppe: 'Résidence des Alpes', time: '2h', badge: 'new' },
+            { type: 'vote', title: 'Vote: Travaux façade', ppe: 'Les Jardins', time: '1j', badge: 'active' },
+            { type: 'doc', title: 'Facture chauffage Q4 2024', ppe: 'Le Panorama', time: '3j', badge: 'archived' }
+        ]
+    };
+    
+    // ==========================================
+    // TRANSLATIONS
+    // ==========================================
+    
+    const i18n = {
+        fr: {
+            tagline: 'La copropriété, enfin simple<br>Eigentum, endlich einfach',
+            welcome: 'Bienvenue',
+            loginSubtitle: 'Gestion simplifiée de vos PPE',
+            email: 'Email',
+            password: 'Mot de passe',
+            login: 'Se connecter',
+            demoAccount: 'Compte démo disponible',
+            useDemo: 'Utiliser le compte démo',
+            logout: 'Déconnexion',
+            dashboard: 'Tableau de bord',
+            myPPE: 'Mes PPE',
+            documents: 'Documents',
+            votes: 'Votes',
+            messages: 'Messages',
+            dashboardTitle: 'Tableau de bord',
+            dashboardSubtitle: 'Vue d\'ensemble de vos propriétés',
+            newPPE: 'Nouvelle PPE',
+            ppeManaged: 'PPE gérées',
+            totalLots: 'Total lots',
+            activeVotes: 'Votes en cours',
+            closingSoon: 'clôture demain',
+            addDoc: 'Ajouter document',
+            addDocDesc: 'PV, règlement, contrat',
+            newVote: 'Nouveau vote',
+            newVoteDesc: 'Décision assemblée',
+            sendMessage: 'Envoyer message',
+            sendMessageDesc: 'Notifier copropriétaires',
+            viewPPE: 'Voir mes PPE',
+            viewPPEDesc: 'Gérer les copropriétés',
+            recentActivity: 'Activité récente',
+            seeAll: 'Voir tout',
+            ppeSubtitle: 'Gestion des copropriétés',
+            docsSubtitle: 'Centralisation et archivage',
+            add: 'Ajouter',
+            all: 'Tous',
+            regulations: 'Règlements',
+            contracts: 'Contrats',
+            invoices: 'Factures',
+            votesSubtitle: 'Gestion démocratique des PPE',
+            messagesSubtitle: 'Communication centralisée',
+            newMessage: 'Nouveau message',
+            selectPPE: 'PPE concernée',
+            recipients: 'Destinataires',
+            allOwners: 'Tous les copropriétaires',
+            councilOnly: 'Conseil de PPE uniquement',
+            subject: 'Sujet',
+            message: 'Message',
+            autoNotify: 'Notification email automatique',
+            send: 'Envoyer',
+            messageHistory: 'Historique récent',
+            cancel: 'Annuler',
+            create: 'Créer',
+            ppeName: 'Nom de la PPE',
+            address: 'Adresse',
+            lotCount: 'Nombre de lots',
+            creationDate: 'Date de création',
+            docType: 'Type de document',
+            file: 'Fichier',
+            description: 'Description (optionnel)',
+            dropFiles: 'Glissez-déposez vos fichiers ici',
+            orClick: 'ou cliquez pour parcourir',
+            voteTitle: 'Titre du vote',
+            voteDesc: 'Description',
+            majorityType: 'Type de majorité',
+            simpleMajority: 'Majorité simple (>50%)',
+            absoluteMajority: 'Majorité absolue (>50% des voix)',
+            unanimity: 'Unanimité',
+            endDate: 'Date de clôture',
+            launchVote: 'Lancer le vote',
+            uploadSuccess: 'Document uploadé avec succès',
+            voteCreated: 'Vote créé et notifié',
+            ppeCreated: 'PPE créée avec succès',
+            messageSent: 'Message envoyé avec succès',
+            loading: 'Chargement...'
+        },
+        de: {
+            tagline: 'Eigentum, endlich einfach<br>La copropriété, enfin simple',
+            welcome: 'Willkommen',
+            loginSubtitle: 'Vereinfachte Verwaltung Ihrer Eigentum',
+            email: 'E-Mail',
+            password: 'Passwort',
+            login: 'Anmelden',
+            demoAccount: 'Demo-Konto verfügbar',
+            useDemo: 'Demo-Konto verwenden',
+            logout: 'Abmelden',
+            dashboard: 'Dashboard',
+            myPPE: 'Meine Eigentum',
+            documents: 'Dokumente',
+            votes: 'Abstimmungen',
+            messages: 'Nachrichten',
+            dashboardTitle: 'Dashboard',
+            dashboardSubtitle: 'Überblick über Ihre Immobilien',
+            newPPE: 'Neue Eigentum',
+            ppeManaged: 'Verwaltete Eigentum',
+            totalLots: 'Total Einheiten',
+            activeVotes: 'Laufende Abstimmungen',
+            closingSoon: 'schließt morgen',
+            addDoc: 'Dokument hinzufügen',
+            addDocDesc: 'PV, Reglement, Vertrag',
+            newVote: 'Neue Abstimmung',
+            newVoteDesc: 'Versammlungsentscheidung',
+            sendMessage: 'Nachricht senden',
+            sendMessageDesc: 'Eigentümer benachrichtigen',
+            viewPPE: 'Meine Eigentum ansehen',
+            viewPPEDesc: 'Eigentum verwalten',
+            recentActivity: 'Letzte Aktivitäten',
+            seeAll: 'Alle anzeigen',
+            ppeSubtitle: 'Verwaltung der Eigentum',
+            docsSubtitle: 'Zentralisierung und Archivierung',
+            add: 'Hinzufügen',
+            all: 'Alle',
+            regulations: 'Reglemente',
+            contracts: 'Verträge',
+            invoices: 'Rechnungen',
+            votesSubtitle: 'Demokratische Verwaltung',
+            messagesSubtitle: 'Zentrale Kommunikation',
+            newMessage: 'Neue Nachricht',
+            selectPPE: 'Betroffene Eigentum',
+            recipients: 'Empfänger',
+            allOwners: 'Alle Eigentümer',
+            councilOnly: 'Nur Verwaltungsrat',
+            subject: 'Betreff',
+            message: 'Nachricht',
+            autoNotify: 'Automatische E-Mail-Benachrichtigung',
+            send: 'Senden',
+            messageHistory: 'Letzte Nachrichten',
+            cancel: 'Abbrechen',
+            create: 'Erstellen',
+            ppeName: 'Name der Eigentum',
+            address: 'Adresse',
+            lotCount: 'Anzahl Einheiten',
+            creationDate: 'Erstellungsdatum',
+            docType: 'Dokumententyp',
+            file: 'Datei',
+            description: 'Beschreibung (optional)',
+            dropFiles: 'Dateien hier ablegen',
+            orClick: 'oder klicken zum Durchsuchen',
+            voteTitle: 'Titel der Abstimmung',
+            voteDesc: 'Beschreibung',
+            majorityType: 'Mehrheitstyp',
+            simpleMajority: 'Einfache Mehrheit (>50%)',
+            absoluteMajority: 'Absolute Mehrheit (>50% der Stimmen)',
+            unanimity: 'Einstimmigkeit',
+            endDate: 'Enddatum',
+            launchVote: 'Abstimmung starten',
+            uploadSuccess: 'Dokument erfolgreich hochgeladen',
+            voteCreated: 'Abstimmung erstellt und benachrichtigt',
+            ppeCreated: 'Eigentum erfolgreich erstellt',
+            messageSent: 'Nachricht erfolgreich gesendet',
+            loading: 'Laden...'
+        }
+    };
+    
+    // ==========================================
+    // FUNCTIONS
+    // ==========================================
+    
+    function t(key) {
+        return i18n[currentLang][key] || key;
+    }
+    
+    function setLang(lang) {
+        currentLang = lang;
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.lang === lang);
+        });
+        updateUI();
+        showToast(lang === 'fr' ? 'Langue changée' : 'Sprache geändert');
+    }
+    
+    function updateUI() {
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.dataset.i18n;
+            if (i18n[currentLang][key]) {
+                el.innerHTML = i18n[currentLang][key];
+            }
+        });
+    }
+    
+    function fillDemo() {
+        document.getElementById('loginEmail').value = 'demo@coproch.ch';
+        document.getElementById('loginPassword').value = 'demo123';
+    }
+    
+    function handleLogin(e) {
+        e.preventDefault();
+        currentUser = { 
+            email: document.getElementById('loginEmail').value, 
+            name: 'Jean Dupont',
+            company: 'Régie Immo Plus SA'
+        };
+        document.getElementById('loginPage').style.display = 'none';
+        document.getElementById('app').style.display = 'block';
+        initApp();
+        showToast(t('welcome'), 'success');
+    }
+    
+    function logout() {
+        currentUser = null;
+        document.getElementById('app').style.display = 'none';
+        document.getElementById('loginPage').style.display = 'flex';
+    }
+    
+    function toggleMobileMenu() {
+        document.getElementById('navLinks').classList.toggle('active');
+    }
+    
+    function showPage(pageName) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById(pageName).classList.add('active');
+        
+        document.querySelectorAll('.nav-links a').forEach(a => {
+            a.classList.remove('active');
+            if (a.getAttribute('onclick')?.includes(pageName)) {
+                a.classList.add('active');
+            }
+        });
+        
+        document.getElementById('navLinks').classList.remove('active');
+        
+        // Refresh data
+        if (pageName === 'ppe') renderPPE();
+        if (pageName === 'documents') renderDocuments();
+        if (pageName === 'votes') renderVotes();
+        if (pageName === 'messages') renderMessages();
+    }
+    
+    function initApp() {
+        updateUI();
+        renderActivity();
+        renderPPE();
+        renderDocuments();
+        renderVotes();
+        renderMessages();
+    }
+    
+    function renderActivity() {
+        const container = document.getElementById('activityList');
+        container.innerHTML = appData.activities.map(act => `
+            <div class="list-item">
+                <div class="item-info">
+                    <h4>${act.title}</h4>
+                    <p>${act.ppe} • ${act.time}</p>
+                </div>
+                <span class="badge badge-${act.badge === 'new' ? 'success' : act.badge === 'active' ? 'warning' : 'blue'}">
+                    ${act.badge === 'new' ? 'Nouveau' : act.badge === 'active' ? 'En cours' : 'Archivé'}
+                </span>
+            </div>
+        `).join('');
+    }
+    
+    function renderPPE() {
+        const container = document.getElementById('ppeList');
+        container.innerHTML = appData.ppe.map(ppe => `
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">${ppe.name}</h3>
+                    <span class="badge badge-success">Active</span>
+                </div>
+                <div class="card-body">
+                    <p style="color: var(--gray-600); margin-bottom: 1rem; font-size: 0.875rem;">
+                        📍 ${ppe.address}
+                    </p>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                        <div>
+                            <p style="font-size: 0.875rem; color: var(--gray-600);">Lots</p>
+                            <p style="font-weight: 600; font-size: 1.125rem;">${ppe.lots}</p>
+                        </div>
+                        <div>
+                            <p style="font-size: 0.875rem; color: var(--gray-600);">Copropriétaires</p>
+                            <p style="font-weight: 600; font-size: 1.125rem;">${ppe.owners}</p>
+                        </div>
+                        <div>
+                            <p style="font-size: 0.875rem; color: var(--gray-600);">Documents</p>
+                            <p style="font-weight: 600; font-size: 1.125rem;">${ppe.docs}</p>
+                        </div>
+                        <div>
+                            <p style="font-size: 0.875rem; color: var(--gray-600);">Dernier PV</p>
+                            <p style="font-weight: 600; font-size: 1.125rem;">${ppe.lastPV}</p>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" style="width: 100%;" onclick="showToast('Fonctionnalité complète en développement')">
+                        Gérer
+                    </button>
+                </div>
+            </div>
+        `).join('');
+        
+        // Update stats
+        document.getElementById('statPPE').textContent = appData.ppe.length;
+        document.getElementById('statLots').textContent = appData.ppe.reduce((a, b) => a + b.lots, 0);
+    }
+    
+    function renderDocuments() {
+        const container = document.getElementById('documentsList');
+        const filtered = currentFilter === 'all' 
+            ? appData.documents 
+            : appData.documents.filter(d => d.type === currentFilter);
+            
+        container.innerHTML = filtered.map(doc => {
+            const ppe = appData.ppe.find(p => p.id === doc.ppe);
+            const iconClass = doc.name.endsWith('.pdf') ? 'pdf' : doc.name.endsWith('.docx') ? 'doc' : 'img';
+            return `
+                <div class="document-item">
+                    <div class="doc-icon ${iconClass}">${iconClass.toUpperCase()}</div>
+                    <div style="flex: 1;">
+                        <h4 style="font-weight: 600; margin-bottom: 0.25rem;">${doc.name}</h4>
+                        <p style="font-size: 0.875rem; color: var(--gray-600);">
+                            ${ppe?.name || 'PPE'} • ${doc.size} • ${doc.date}
+                        </p>
+                    </div>
+                    <button class="btn btn-secondary btn-sm" onclick="showToast('Téléchargement simulé')">
+                        ⬇️
+                    </button>
+                </div>
+            `;
+        }).join('');
+        
+        document.getElementById('statDocs').textContent = appData.documents.length;
+    }
+    
+    function filterDocs(type, tab) {
+        currentFilter = type;
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        renderDocuments();
+    }
+    
+    function renderVotes() {
+        const container = document.getElementById('votesList');
+        container.innerHTML = appData.votes.map(vote => {
+            const ppe = appData.ppe.find(p => p.id === vote.ppe);
+            const total = vote.results.total;
+            const yes = vote.results.yes;
+            const no = vote.results.no;
+            const abstain = vote.results.abstain;
+            const yesPct = (yes / total * 100).toFixed(0);
+            const noPct = (no / total * 100).toFixed(0);
+            const abstainPct = (abstain / total * 100).toFixed(0);
+            
+            return `
+                <div class="vote-card">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+                        <div>
+                            <h4 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem;">${vote.title}</h4>
+                            <p style="color: var(--gray-600);">
+                                ${ppe?.name || 'PPE'} ${vote.budget ? `• Budget: ${vote.budget}` : ''}
+                            </p>
+                        </div>
+                        <span class="badge badge-${vote.status === 'active' ? 'warning' : 'success'}">
+                            ${vote.status === 'active' ? 'En cours' : 'Approuvé'}
+                        </span>
+                    </div>
+                    
+                    <p style="margin-bottom: 1rem; color: var(--gray-700);">${vote.desc}</p>
+                    
+                    <div class="vote-results">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.875rem; margin-bottom: 0.75rem;">
+                            <span>Participation: ${yes + no + abstain}/${total} (${((yes+no+abstain)/total*100).toFixed(0)}%)</span>
+                            <span style="color: var(--success); font-weight: 600;">Quorum atteint</span>
+                        </div>
+                        
+                        <div style="margin-bottom: 0.75rem;">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.875rem; margin-bottom: 0.25rem;">
+                                <span style="color: var(--success); font-weight: 600;">✓ Oui: ${yes} (${yesPct}%)</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${yesPct}%; background: var(--success);"></div>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; gap: 1.5rem; font-size: 0.875rem; margin-top: 0.75rem;">
+                            <span style="color: var(--danger);">✗ Non: ${no} (${noPct}%)</span>
+                            <span style="color: var(--gray-600);">○ Abstention: ${abstain} (${abstainPct}%)</span>
+                        </div>
+                    </div>
+                    
+                    ${vote.status === 'active' ? `
+                        <p style="font-size: 0.875rem; color: var(--gray-600); margin-top: 1rem;">
+                            ⏰ Clôture: ${vote.endDate}
+                        </p>
+                    ` : ''}
+                </div>
+            `;
+        }).join('');
+        
+        document.getElementById('statVotes').textContent = appData.votes.filter(v => v.status === 'active').length;
+    }
+    
+    function renderMessages() {
+        const select = document.getElementById('msgPPE');
+        select.innerHTML = appData.ppe.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+        
+        const history = document.getElementById('messageHistory');
+        history.innerHTML = appData.messages.map(msg => {
+            const ppe = appData.ppe.find(p => p.id === msg.ppe);
+            return `
+                <div class="list-item">
+                    <div class="item-info">
+                        <h4>${msg.subject}</h4>
+                        <p>${ppe?.name || 'PPE'} • ${msg.recipients} destinataires</p>
+                    </div>
+                    <span style="font-size: 0.875rem; color: var(--gray-600);">${msg.date}</span>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    function sendMessage(e) {
+        e.preventDefault();
+        const newMsg = {
+            id: Date.now(),
+            ppe: parseInt(document.getElementById('msgPPE').value),
+            subject: document.getElementById('msgSubject').value,
+            recipients: document.getElementById('msgRecipients').value === 'all' ? 18 : 5,
+            date: new Date().toISOString().split('T')[0],
+            status: 'sent'
+        };
+        appData.messages.unshift(newMsg);
+        appData.activities.unshift({
+            type: 'message',
+            title: newMsg.subject,
+            ppe: appData.ppe.find(p => p.id === newMsg.ppe)?.name || 'PPE',
+            time: 'maintenant',
+            badge: 'new'
+        });
+        renderMessages();
+        renderActivity();
+        showToast(t('messageSent'), 'success');
+        e.target.reset();
+    }
+    
+    // ==========================================
+    // MODALS & UPLOAD
+    // ==========================================
+    
+    let uploadedFiles = [];
+    
+    function openModal(type) {
+        const modal = document.getElementById('modal');
+        const title = document.getElementById('modalTitle');
+        const body = document.getElementById('modalBody');
+        
+        const titles = {
+            newPPE: t('newPPE'),
+            newDoc: t('addDoc'),
+            newVote: t('newVote')
+        };
+        
+        title.textContent = titles[type] || 'Modal';
+        uploadedFiles = [];
+        
+        const content = {
+            newPPE: `
+                <form onsubmit="handleCreatePPE(event)">
+                    <div class="form-group">
+                        <label>${t('ppeName')}</label>
+                        <input type="text" class="form-control" name="name" required placeholder="Ex: Résidence des Alpes">
+                    </div>
+                    <div class="form-group">
+                        <label>${t('address')}</label>
+                        <input type="text" class="form-control" name="address" required placeholder="Rue, NPA, Localité">
+                    </div>
+                    <div class="form-group">
+                        <label>${t('lotCount')}</label>
+                        <input type="number" class="form-control" name="lots" required min="1" placeholder="Ex: 12">
+                    </div>
+                    <div class="form-group">
+                        <label>${t('creationDate')}</label>
+                        <input type="date" class="form-control" name="date" required>
+                    </div>
+                    <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal()" style="flex: 1;">${t('cancel')}</button>
+                        <button type="submit" class="btn btn-primary" style="flex: 1;">${t('create')}</button>
+                    </div>
+                </form>
+            `,
+            newDoc: `
+                <form onsubmit="handleUploadDoc(event)">
+                    <div class="form-group">
+                        <label>${t('selectPPE')}</label>
+                        <select class="form-control" name="ppe" required>
+                            ${appData.ppe.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>${t('docType')}</label>
+                        <select class="form-control" name="type" required>
+                            <option value="pv">PV Assemblée générale</option>
+                            <option value="reglement">${t('regulations')}</option>
+                            <option value="contrat">${t('contracts')}</option>
+                            <option value="facture">${t('invoices')}</option>
+                            <option value="autre">Autre</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>${t('file')}</label>
+                        <div class="upload-zone" onclick="document.getElementById('fileInput').click()" 
+                             ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+                            <input type="file" id="fileInput" multiple onchange="handleFileSelect(event)">
+                            <div class="upload-icon">📁</div>
+                            <p style="font-weight: 600; margin-bottom: 0.25rem;">${t('dropFiles')}</p>
+                            <p style="font-size: 0.875rem; color: var(--gray-600);">${t('orClick')}</p>
+                        </div>
+                        <div class="file-list" id="fileList"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>${t('description')}</label>
+                        <textarea class="form-control" name="desc" rows="2"></textarea>
+                    </div>
+                    <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal()" style="flex: 1;">${t('cancel')}</button>
+                        <button type="submit" class="btn btn-primary" style="flex: 1;" id="uploadBtn" disabled>${t('create')}</button>
+                    </div>
+                </form>
+            `,
+            newVote: `
+                <form onsubmit="handleCreateVote(event)">
+                    <div class="form-group">
+                        <label>${t('selectPPE')}</label>
+                        <select class="form-control" name="ppe" required>
+                            ${appData.ppe.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>${t('voteTitle')}</label>
+                        <input type="text" class="form-control" name="title" required placeholder="Ex: Travaux de façade">
+                    </div>
+                    <div class="form-group">
+                        <label>${t('voteDesc')}</label>
+                        <textarea class="form-control" name="desc" rows="3" required placeholder="Détails de la décision..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>${t('majorityType')}</label>
+                        <select class="form-control" name="majority">
+                            <option value="simple">${t('simpleMajority')}</option>
+                            <option value="absolute">${t('absoluteMajority')}</option>
+                            <option value="unanimity">${t('unanimity')}</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>${t('endDate')}</label>
+                        <input type="datetime-local" class="form-control" name="endDate" required>
+                    </div>
+                    <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal()" style="flex: 1;">${t('cancel')}</button>
+                        <button type="submit" class="btn btn-primary" style="flex: 1;">${t('launchVote')}</button>
+                    </div>
+                </form>
+            `
+        };
+        
+        body.innerHTML = content[type] || '<p>Contenu non disponible</p>';
+        modal.classList.add('active');
+    }
+    
+    function closeModal() {
+        document.getElementById('modal').classList.remove('active');
+        uploadedFiles = [];
+    }
+    
+    // Upload handlers
+    function handleDragOver(e) {
+        e.preventDefault();
+        e.currentTarget.classList.add('dragover');
+    }
+    
+    function handleDragLeave(e) {
+        e.currentTarget.classList.remove('dragover');
+    }
+    
+    function handleDrop(e) {
+        e.preventDefault();
+        e.currentTarget.classList.remove('dragover');
+        const files = Array.from(e.dataTransfer.files);
+        processFiles(files);
+    }
+    
+    function handleFileSelect(e) {
+        const files = Array.from(e.target.files);
+        processFiles(files);
+    }
+    
+    function processFiles(files) {
+        uploadedFiles = [...uploadedFiles, ...files];
+        renderFileList();
+        document.getElementById('uploadBtn').disabled = uploadedFiles.length === 0;
+    }
+    
+    function renderFileList() {
+        const list = document.getElementById('fileList');
+        list.innerHTML = uploadedFiles.map((file, idx) => `
+            <div class="file-item">
+                <span>📄 ${file.name} (${(file.size/1024/1024).toFixed(2)} MB)</span>
+                <button type="button" onclick="removeFile(${idx})" title="Supprimer">×</button>
+            </div>
+        `).join('');
+    }
+    
+    function removeFile(idx) {
+        uploadedFiles.splice(idx, 1);
+        renderFileList();
+        document.getElementById('uploadBtn').disabled = uploadedFiles.length === 0;
+    }
+    
+    // Form handlers
+    function handleCreatePPE(e) {
+        e.preventDefault();
+        const form = e.target;
+        const newPPE = {
+            id: Date.now(),
+            name: form.name.value,
+            address: form.address.value,
+            lots: parseInt(form.lots.value),
+            owners: Math.floor(parseInt(form.lots.value) * 0.8),
+            docs: 0,
+            lastPV: 'Jamais'
+        };
+        appData.ppe.push(newPPE);
+        appData.activities.unshift({
+            type: 'ppe',
+            title: `Nouvelle PPE: ${newPPE.name}`,
+            ppe: newPPE.name,
+            time: 'maintenant',
+            badge: 'new'
+        });
+        renderPPE();
+        renderActivity();
+        closeModal();
+        showToast(t('ppeCreated'), 'success');
+    }
+    
+    function handleUploadDoc(e) {
+        e.preventDefault();
+        const form = e.target;
+        
+        uploadedFiles.forEach(file => {
+            const newDoc = {
+                id: Date.now() + Math.random(),
+                name: file.name,
+                ppe: parseInt(form.ppe.value),
+                type: form.type.value,
+                size: (file.size/1024/1024).toFixed(2) + ' MB',
+                date: new Date().toISOString().split('T')[0],
+                url: '#'
+            };
+            appData.documents.unshift(newDoc);
+            
+            // Update PPE doc count
+            const ppe = appData.ppe.find(p => p.id === newDoc.ppe);
+            if (ppe) ppe.docs++;
+        });
+        
+        appData.activities.unshift({
+            type: 'doc',
+            title: `Document: ${uploadedFiles[0].name}`,
+            ppe: appData.ppe.find(p => p.id === parseInt(form.ppe.value))?.name || 'PPE',
+            time: 'maintenant',
+            badge: 'new'
+        });
+        
+        renderDocuments();
+        renderPPE();
+        renderActivity();
+        closeModal();
+        showToast(`${uploadedFiles.length} ${t('uploadSuccess')}`, 'success');
+    }
+    
+    function handleCreateVote(e) {
+        e.preventDefault();
+        const form = e.target;
+        const newVote = {
+            id: Date.now(),
+            ppe: parseInt(form.ppe.value),
+            title: form.title.value,
+            desc: form.desc.value,
+            status: 'active',
+            type: form.majority.value,
+            endDate: form.endDate.value.split('T')[0],
+            results: { yes: 0, no: 0, abstain: 0, total: 18 },
+            budget: null
+        };
+        appData.votes.unshift(newVote);
+        appData.activities.unshift({
+            type: 'vote',
+            title: `Vote: ${newVote.title}`,
+            ppe: appData.ppe.find(p => p.id === newVote.ppe)?.name || 'PPE',
+            time: 'maintenant',
+            badge: 'active'
+        });
+        renderVotes();
+        renderActivity();
+        closeModal();
+        showToast(t('voteCreated'), 'success');
+    }
+    
+    function showToast(message, type = 'success') {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.className = `toast show ${type}`;
+        setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+        updateUI();
+    });
+</script>
+
+</body>
+</html>
